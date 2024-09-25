@@ -64,8 +64,10 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                              h3(textOutput("output_genename")),
                              
                              # Plot
-                             plotOutput("gene_plot")
+                             plotOutput("gene_plot"),
                              
+                             # Download Button
+                             downloadButton("download_plot", "Download Plot")
                            ) # mainPanel
                            
                   ), # Navbar 1, tabPanel
@@ -83,14 +85,27 @@ server <- function(input, output) {
              sep = " ")
   })
   
-  output$gene_plot <- renderPlot({
-    gene_combined %>% 
-      filter(gene_id == input$genename) %>% 
-      ggplot(aes(x = Time, y = log, color = Tissue, fill = Tissue)) +
-      facet_grid(~Tissue)+
-      geom_point() +
-      labs(title = paste("Log count of", input$genename, sep = " "))
+  gene_plot <- reactive({
+    gene_combined %>%        
+      filter(gene_id == input$genename) %>%        
+      ggplot(aes(x = Time, y = log, color = Tissue, fill = Tissue)) +       
+      facet_grid(~Tissue) +       
+      geom_point() +       
+      labs(title = paste("Log count of", input$genename, sep = " "))   
   })
+  
+  output$gene_plot <- renderPlot({
+    gene_plot()
+  })
+  
+  output$download_plot <- downloadHandler(
+    filename = function() {
+      paste("gene_expression_plot_", input$genename, ".pdf", sep = "")
+    },
+    content = function(file) {
+      ggsave(file, plot = gene_plot(), device = "pdf", width = 8, height = 4)
+    }
+  )
 } # server
 
 
