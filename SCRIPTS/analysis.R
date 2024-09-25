@@ -42,10 +42,10 @@ gene_combined <- gene_combined %>%
   mutate(Time = fct_relevel(Time, "ZT0", "ZT4", "ZT8",
                             "ZT12", "ZT16", "ZT20", 
                             "ZT24"))
-#### STATS####
+#### STATS ####
 
 stat_test <- gene_combined %>%
-  group_by(Time, Tissue) %>%
+  group_by(Tissue) %>%
   t_test(log ~ Time)
 stat_test <- stat_test %>% add_y_position()
 
