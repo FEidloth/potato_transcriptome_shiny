@@ -1,11 +1,4 @@
 #
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
 #### LOAD LIBRARY ####
 library(tidyverse)
 library(rstatix)
@@ -16,7 +9,29 @@ Meta_Data <- read.csv("../META_DATA/Hoopes_et_al.,2022/Meta_Data.csv")
 
 leaf <- read.delim("../DATA/PLD3-6-e425-s001_leaf_LD.txt")
 tuber <- read.delim("../DATA/PLD3-6-e425-s006_tuber_LD.txt")
-
+#
+#### PLOT THEME ####
+my_theme <- 
+  theme(plot.background = element_rect(fill = "transparent", color = NA),
+        panel.background = element_rect(fill = "transparent"),
+        panel.border = element_rect(colour = "#595959", fill = NA, linewidth = .6),
+        panel.grid.major.y = element_line(colour = "#a5a5a5", linewidth = .1),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_line(colour = "#a5a5a5", linewidth = .1),
+        panel.grid.minor.x = element_blank(),
+        axis.ticks = element_line(linewidth = .3, color = "#595959"), 
+        axis.ticks.length = unit(.2, "cm"),
+        axis.title.x = element_text(color = "#595959", vjust = 0, size = 10, face = 1),
+        axis.title.y = element_text(color = "#595959", vjust = 2, size = 10, face = 1),
+        axis.text = element_text(color="#595959", size=10, face=1),
+        plot.title = element_text(margin = margin(10, 0, 10, 0),
+                                  size = 14, hjust = 0.5,
+                                  colour = "#595959"),
+        strip.text.x = element_text(color = "#595959", size=12), 
+        strip.background = element_rect(colour="transparent", fill="transparent"),
+        legend.position = "none"
+  )
+#
 #### DATA PREPROCESSING ####
 log_leaf <- leaf %>% 
   select(-c(Module, BH_P_value,meta2d_AMP, meta2d_rAMP, Amplitude.Change.Coefficient,
@@ -44,7 +59,15 @@ gene_combined <- gene_combined %>%
                             "ZT24"))
 
 
+ZT_comparisons <- list(c(c("ZT0", "ZT4"), c("ZT0", "ZT8"), c("ZT0", "ZT12"),
+                         c("ZT0", "ZT16"), c("ZT0", "ZT20"), c("ZT0", "ZT24"),
+                         c("ZT4", "ZT8"), c("ZT4", "ZT12"), c("ZT4", "ZT16"),
+                         c("ZT4", "ZT20"), c("ZT4", "ZT24"), c("ZT8", "ZT12"),
+                         c("ZT8", "ZT16"), c("ZT8", "ZT20"), c("ZT8", "ZT24"),
+                         c("ZT12", "ZT16"), c("ZT12", "ZT20"), c("ZT12", "ZT24"),
+                         c("ZT16", "ZT20"), c("ZT16", "ZT24"), c("ZT20", "ZT24")))
 
+#### CREATE APP ####
 # Define UI for application that draws a histogram
 # Define UI
 ui <- fluidPage(theme = shinytheme("flatly"),
@@ -90,8 +113,25 @@ server <- function(input, output) {
       filter(gene_id == input$genename) %>%        
       ggplot(aes(x = Time, y = log, color = Tissue, fill = Tissue)) +       
       facet_grid(~Tissue) +       
-      geom_point() +       
-      labs(title = paste("Log count of", input$genename, sep = " "))   
+      geom_point() +
+      scale_y_continuous(expand = expansion(mult = c(0, .2)), limits = c(0, NA)) +
+      stat_summary(
+        fun = mean, geom = "point", 
+        shape = 95, size = 10, alpha = 0.8
+      ) +
+      stat_compare_means(
+        method = "t.test", 
+        aes(group = Time), 
+        comparisons = ZT_comparisons,
+        label = "p.signif", 
+        hide.ns = TRUE,
+        bracket.size = 0.2,
+        tip.length = 0.01
+      ) +
+      labs(title = paste("Log count of", input$genename, sep = " ")) +
+      scale_color_viridis_d(option = "viridis", begin = .7, end = .3) +
+      scale_fill_viridis_d(option = "viridis", begin = .7, end = .3) +
+      my_theme  
   })
   
   output$gene_plot <- renderPlot({
