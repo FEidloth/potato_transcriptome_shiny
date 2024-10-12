@@ -87,21 +87,12 @@ gene_combined %>%
   ggplot(aes(x = Time, y = log, color = Tissue, fill = Tissue)) +
   facet_grid(~Tissue)+
   geom_point() +
-  scale_y_continuous(expand = expansion(mult = c(0, .2)), limits = c(0, NA)) +
+  scale_y_continuous(expand = expansion(mult = c(0, .1)), limits = c(0, NA)) +
   stat_summary(
     fun = mean, geom = "point", 
     shape = 95, size = 10, alpha = 0.8
   ) +
-  # Add pairwise comparisons across time within each tissue
-  stat_compare_means(
-    method = "t.test", 
-    aes(group = Time), 
-    comparisons = ZT_comparisons,
-    label = "p.signif", 
-    hide.ns = TRUE,
-    bracket.size = 0.2,
-    tip.length = 0.01
-  ) +
+  stat_compare_means(aes(group = Time), ref.group = ".all.", label = "p.signif", hide.ns = T) +
   scale_color_viridis_d(option = "viridis", begin = .7, end = .3) +
   scale_fill_viridis_d(option = "viridis", begin = .7, end = .3) +
   my_theme

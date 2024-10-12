@@ -4,6 +4,7 @@ library(tidyverse)
 library(rstatix)
 library(shiny)
 library(shinythemes)
+library(ggpubr)
 #### LOAD DATA ####
 Meta_Data <- read.csv("../META_DATA/Hoopes_et_al.,2022/Meta_Data.csv")
 
@@ -58,7 +59,6 @@ gene_combined <- gene_combined %>%
                             "ZT12", "ZT16", "ZT20", 
                             "ZT24"))
 
-
 ZT_comparisons <- list(c(c("ZT0", "ZT4"), c("ZT0", "ZT8"), c("ZT0", "ZT12"),
                          c("ZT0", "ZT16"), c("ZT0", "ZT20"), c("ZT0", "ZT24"),
                          c("ZT4", "ZT8"), c("ZT4", "ZT12"), c("ZT4", "ZT16"),
@@ -68,18 +68,26 @@ ZT_comparisons <- list(c(c("ZT0", "ZT4"), c("ZT0", "ZT8"), c("ZT0", "ZT12"),
                          c("ZT16", "ZT20"), c("ZT16", "ZT24"), c("ZT20", "ZT24")))
 
 #### CREATE APP ####
-# Define UI for application that draws a histogram
 # Define UI
 ui <- fluidPage(theme = shinytheme("flatly"),
                 titlePanel("Potato Expression Atlas"), # title of App, optional
                 
                 navbarPage(
                   "Potato transcriptome", # Navbar side header
+                  
+                  tags$head(
+                    tags$style(HTML("
+                    #genename {
+                    color: #a5a5a5;
+                    background-color: #f0f0f0;
+                    border: 1px solid #595959;
+                    }"))
+                  ), #change colour of textInput field genename
           
                   tabPanel("Expression Data",
                            sidebarPanel(
                              tags$h3("Gene ID:"),
-                             textInput("genename", "Soltu.DM.:", "")), # sidebarPanel
+                             textInput("genename", "Soltu.DM.:", "Soltu.DM.01G000010")), # sidebarPanel
                            
                            mainPanel(
                              # Header
@@ -95,7 +103,7 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                            
                   ), # Navbar 1, tabPanel
                   tabPanel("Background", "Background information will be displayed here")
-                  
+                  ## about panel
                 ) # navbarPage
 ) # fluidPage
 
@@ -108,30 +116,31 @@ server <- function(input, output) {
              sep = " ")
   })
   
+  stats <- reactive({
+    gene_combined %>%
+    filter(gene_id == input$genename) %>%
+    group_by(Tissue) %>%
+    t_test(log ~ Time)})
+  
+  stat_test <- reactive({stats %>% add_y_position()})
+ 
+  
   gene_plot <- reactive({
     gene_combined %>%        
       filter(gene_id == input$genename) %>%        
       ggplot(aes(x = Time, y = log, color = Tissue, fill = Tissue)) +       
       facet_grid(~Tissue) +       
       geom_point() +
-      scale_y_continuous(expand = expansion(mult = c(0, .2)), limits = c(0, NA)) +
+      scale_y_continuous(expand = expansion(mult = c(0, .1)), limits = c(0, NA)) +
       stat_summary(
-        fun = mean, geom = "point", 
+        fun = mean, geom = "point",
         shape = 95, size = 10, alpha = 0.8
       ) +
-      stat_compare_means(
-        method = "t.test", 
-        aes(group = Time), 
-        comparisons = ZT_comparisons,
-        label = "p.signif", 
-        hide.ns = TRUE,
-        bracket.size = 0.2,
-        tip.length = 0.01
-      ) +
+      stat_compare_means(aes(group = Time), ref.group = ".all.", label = "p.signif", hide.ns = T) +
       labs(title = paste("Log count of", input$genename, sep = " ")) +
       scale_color_viridis_d(option = "viridis", begin = .7, end = .3) +
       scale_fill_viridis_d(option = "viridis", begin = .7, end = .3) +
-      my_theme  
+      my_theme
   })
   
   output$gene_plot <- renderPlot({
@@ -140,7 +149,7 @@ server <- function(input, output) {
   
   output$download_plot <- downloadHandler(
     filename = function() {
-      paste("gene_expression_plot_", input$genename, ".pdf", sep = "")
+      paste0("gene_expression_plot_", input$genename, ".pdf")
     },
     content = function(file) {
       ggsave(file, plot = gene_plot(), device = "pdf", width = 8, height = 4)
