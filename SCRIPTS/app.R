@@ -5,6 +5,7 @@ library(rstatix)
 library(shiny)
 library(shinythemes)
 library(ggpubr)
+library(pheatmap)
 #### LOAD DATA ####
 Meta_Data <- read.csv("../META_DATA/Hoopes_et_al.,2022/Meta_Data.csv")
 
@@ -59,13 +60,6 @@ gene_combined <- gene_combined %>%
                             "ZT12", "ZT16", "ZT20", 
                             "ZT24"))
 
-ZT_comparisons <- list(c(c("ZT0", "ZT4"), c("ZT0", "ZT8"), c("ZT0", "ZT12"),
-                         c("ZT0", "ZT16"), c("ZT0", "ZT20"), c("ZT0", "ZT24"),
-                         c("ZT4", "ZT8"), c("ZT4", "ZT12"), c("ZT4", "ZT16"),
-                         c("ZT4", "ZT20"), c("ZT4", "ZT24"), c("ZT8", "ZT12"),
-                         c("ZT8", "ZT16"), c("ZT8", "ZT20"), c("ZT8", "ZT24"),
-                         c("ZT12", "ZT16"), c("ZT12", "ZT20"), c("ZT12", "ZT24"),
-                         c("ZT16", "ZT20"), c("ZT16", "ZT24"), c("ZT20", "ZT24")))
 
 #### CREATE APP ####
 # Define UI
@@ -102,8 +96,20 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                            ) # mainPanel
                            
                   ), # Navbar 1, tabPanel
+                  
+                  tabPanel("Heatmap", 
+                           sidebarPanel(
+                             tags$h3("Enter Gene IDs (comma seperated):"),
+                             textInput("gene_ids", "Gene_IDs:", ""),
+                             actionButton("heatmap_button", "Generate Heatmap")
+                           ),
+                           mainPanel(
+                             h1("Heatmap"),
+                             plotOutput("heatmap_plot")
+                           )),
+                  
                   tabPanel("Background", "Background information will be displayed here")
-                  ## about panel
+                  # about paper
                 ) # navbarPage
 ) # fluidPage
 
@@ -136,7 +142,8 @@ server <- function(input, output) {
         fun = mean, geom = "point",
         shape = 95, size = 10, alpha = 0.8
       ) +
-      stat_compare_means(aes(group = Time), ref.group = ".all.", label = "p.signif", hide.ns = T) +
+      stat_compare_means(aes(group = Time),ref.group = ".all.", label = "p.signif", 
+                         size = 6, colour = "#595959", hide.ns = T) +
       labs(title = paste("Log count of", input$genename, sep = " ")) +
       scale_color_viridis_d(option = "viridis", begin = .7, end = .3) +
       scale_fill_viridis_d(option = "viridis", begin = .7, end = .3) +
@@ -153,8 +160,33 @@ server <- function(input, output) {
     },
     content = function(file) {
       ggsave(file, plot = gene_plot(), device = "pdf", width = 8, height = 4)
-    }
-  )
+    })
+  
+  output$heatmap_plot <- renderPlot({
+      req(input$heatmap_button) #wait for click on button
+    
+    # Put input genes in list
+    gene_list <- strsplit(input$gene_ids, ",")[[1]] # split input at ","
+    gene_list <- trimws(gene_list) # remove spaces
+    
+    # filter input genes from gene_combined
+    gene_subset <- gene_combined %>% 
+      filter(gene_id %in% gene_list) %>% 
+      pivot_wider(names_from = Time,
+                  values_from = log) %>% 
+      column_to_rownames("gene_id")
+    
+    # Generate Heatmap
+    pheatmap::pheatmap(
+      as.matrix(gene_subset),
+      color = viridis(100),
+      cluster_rows = T,
+      cluster_cols = T,
+      show_rownames = T,
+      show_colnames = T
+    )
+    })
+  
 } # server
 
 

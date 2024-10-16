@@ -69,33 +69,39 @@ gene_combined <- gene_combined %>%
                             "ZT24"))
 #### STATS ####
 
-stat_test <- gene_combined %>%
-  group_by(Tissue) %>%
-  t_test(log ~ Time)
-stat_test <- stat_test %>% add_y_position()
+stat_test <- compare_means(log ~ Time, gene_combined, group.by = "Tissue", 
+                           ref.group = ".all.", method = "wilcox.test")
 
-ZT_comparisons <- list(c(c("ZT0", "ZT4"), c("ZT0", "ZT8"), c("ZT0", "ZT12"),
-                         c("ZT0", "ZT16"), c("ZT0", "ZT20"), c("ZT0", "ZT24"),
-                         c("ZT4", "ZT8"), c("ZT4", "ZT12"), c("ZT4", "ZT16"),
-                         c("ZT4", "ZT20"), c("ZT4", "ZT24"), c("ZT8", "ZT12"),
-                         c("ZT8", "ZT16"), c("ZT8", "ZT20"), c("ZT8", "ZT24"),
-                         c("ZT12", "ZT16"), c("ZT12", "ZT20"), c("ZT12", "ZT24"),
-                         c("ZT16", "ZT20"), c("ZT16", "ZT24"), c("ZT20", "ZT24")))
+Max_log <- gene_combined %>% 
+  group_by(Tissue, Time) %>% 
+  summarise(max_log = max(log)) %>% 
+  mutate(y.position = max_log + 0.5)
+
+y_position <- as.vector(Max_log$y.position)
+
 #### PLOT ####
 
-gene_combined %>% 
+gene_combined %>%
   ggplot(aes(x = Time, y = log, color = Tissue, fill = Tissue)) +
-  facet_grid(~Tissue)+
   geom_point() +
-  scale_y_continuous(expand = expansion(mult = c(0, .1)), limits = c(0, NA)) +
+  scale_y_continuous(expand = expansion(mult = c(0, .2)), limits = c(0, NA)) +
   stat_summary(
     fun = mean, geom = "point", 
     shape = 95, size = 10, alpha = 0.8
   ) +
-  stat_compare_means(aes(group = Time), ref.group = ".all.", label = "p.signif", hide.ns = T) +
+  stat_compare_means(aes(group = Time),ref.group = ".all.", label = "p.signif", 
+                     #label.y = y_position,
+                     size = 6, colour = "#595959",
+                     hide.ns = T) +
+  #stat_pvalue_manual(
+   # stat_test, label = "p.signif", hide.ns = TRUE
+  #) +
+  facet_grid(~Tissue) +
   scale_color_viridis_d(option = "viridis", begin = .7, end = .3) +
   scale_fill_viridis_d(option = "viridis", begin = .7, end = .3) +
   my_theme
+
+
 
 
 
